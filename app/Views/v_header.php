@@ -2,8 +2,9 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Web Prog II | Merancang Template sederhana dengan codeigniter</title>
-    <link rel="stylesheet" type="text/css" href="<?= base_url() ?>assets/css/stylebuku.css">
+    <title>Web Prog II | Merancang Template sederhana dengan CodeIgniter</title>
+    
+    <link rel="stylesheet" type="text/css" href="<?= base_url('assets/css/stylebuku.css') ?>">
 </head>
 <body>
     <div id="wrapper">
@@ -14,8 +15,8 @@
             </hgroup>
             <nav>
                 <ul>
-                    <li><a href="<?= base_url() ?>">Home</a></li>
-                    <li><a href="<?= base_url() ?>web/about">About</a></li>
+                    <li><a href="<?= base_url('web') ?>">Home</a></li>
+                    <li><a href="<?= base_url('web/about') ?>">About</a></li>
                 </ul>
             </nav>
             <div class="clear"></div>
