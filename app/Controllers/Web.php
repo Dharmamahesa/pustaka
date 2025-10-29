@@ -2,26 +2,23 @@
 
 namespace App\Controllers;
 
-// Ganti "use CodeIgniter\Controller;"
-// Gunakan BaseController yang disediakan CodeIgniter
+// Pastikan Anda memperluas BaseController
 class Web extends BaseController 
 {
-    public function __construct()
-    {
-        // [Wajib Ditambahkan] Memanggil konstruktor parent untuk inisialisasi CodeIgniter
-        parent::__construct();
-        
-        // Memuat helper 'url' 
-        helper('url');
-    }
+    // [PERBAIKAN KRITIS]: Gunakan property $helpers untuk memuat helper secara otomatis
+    protected $helpers = ['url']; 
+
+    // Method __construct() kini dihapus total, menghilangkan Fatal Error
+    // ...
 
     public function index()
     {
         $data['judul'] = "Halaman Depan";
         
+        // Memuat bagian template
         echo view('v_header', $data);
         echo view('v_index', $data);
-        echo view('v_footer', $data);
+        echo view('v_footer');
     }
     
     public function about()
@@ -30,6 +27,6 @@ class Web extends BaseController
         
         echo view('v_header', $data);
         echo view('v_about', $data);
-        echo view('v_footer', $data);
+        echo view('v_footer');
     }
 }

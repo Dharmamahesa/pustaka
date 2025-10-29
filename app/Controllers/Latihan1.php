@@ -4,15 +4,17 @@ namespace App\Controllers;
 
 use App\Models\ModelLatihan1;
 
-// Ganti "use CodeIgniter\Controller;"
+// Gunakan BaseController
 class Latihan1 extends BaseController 
 {
+    protected $ModelLatihan1;
+
     public function __construct()
     {
-        // [Wajib Ditambahkan] Memanggil konstruktor parent
+        // [FIX KRITIS]: Wajib dipanggil sebelum instansiasi Model
         parent::__construct(); 
 
-        // Inisiasi Model
+        // Instansiasi Model setelah parent::__construct()
         $this->ModelLatihan1 = new ModelLatihan1();
     }
 
@@ -23,6 +25,7 @@ class Latihan1 extends BaseController
 
     public function penjumlahan($n1, $n2)
     {
+        // ... method ini sekarang aman dieksekusi
         $data['nilai1'] = $n1;
         $data['nilai2'] = $n2;
         $data['hasil'] = $this->ModelLatihan1->jumlah($n1, $n2);
