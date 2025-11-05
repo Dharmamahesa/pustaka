@@ -2,12 +2,13 @@
 
 namespace App\Controllers;
 
-// Import ModelUser yang sudah kita buat sebelumnya
+// Import ModelUser dan BaseController CI4
 use App\Models\ModelUser;
 
 class User extends BaseController
 {
     protected $modelUser;
+    protected $helpers = ['form', 'url', 'session']; // Memuat helper untuk CI4
 
     /**
      * Konstruktor
@@ -18,7 +19,7 @@ class User extends BaseController
         // Buat instance dari ModelUser
         $this->modelUser = new ModelUser();
         
-        // Panggil helper cek_login
+        // Panggil helper cek_login (pastikan 'pustaka' helper ada di Autoload.php)
         cek_login();
     }
 
@@ -29,18 +30,13 @@ class User extends BaseController
     public function index()
     {
         $data['judul'] = 'Profil Saya';
-        
-        // Mengambil data user dari session CI4 (bukan $this->session->userdata)
         $email = session()->get('email');
-        
-        // Menggunakan ModelUser yang sudah kita buat
         $data['user'] = $this->modelUser->cekData(['email' => $email]);
 
-        // Menampilkan view di CI4 (gunakan echo view() untuk templating)
         echo view('templates/header', $data);
         echo view('templates/sidebar', $data);
         echo view('templates/topbar', $data);
-        echo view('user/index', $data);
+        echo view('user/index', $data); // Ini memanggil view 'app/Views/user/index.php'
         echo view('templates/footer');
     }
 
@@ -54,23 +50,22 @@ class User extends BaseController
         $email = session()->get('email');
         $data['user'] = $this->modelUser->cekData(['email' => $email]);
         
-        // Adaptasi query CI3: $this->db->where('role_id', 1);
-        // Catatan: role_id 1 adalah 'administrator', role_id 2 adalah 'member'.
-        // Modul menggunakan role_id 1, jadi kita ikuti.
+        // Mengambil semua 'admin' (role_id 1)
         $data['anggota'] = $this->modelUser->where('role_id', 1)->findAll();
 
         echo view('templates/header', $data);
         echo view('templates/sidebar', $data);
         echo view('templates/topbar', $data);
-        echo view('user/anggota', $data);
+        echo view('user/anggota', $data); // Ini memanggil view 'app/Views/user/anggota.php'
         echo view('templates/footer');
     }
 
     /**
      * Method ubahProfil() (GET dan POST)
      * Diadaptasi dari modul (hlm 87-91)
+     * NAMA METHOD HARUS SAMA DENGAN ROUTE (ubahprofil)
      */
-    public function ubahProfil()
+    public function ubahprofil() // Nama method diubah menjadi lowercase
     {
         $data['judul'] = 'Ubah Profil';
         $email = session()->get('email');
@@ -87,59 +82,48 @@ class User extends BaseController
             ]
         ];
 
-        // Jika validasi gagal (CI4 way)
-        // Ini akan gagal saat request GET (halaman dibuka) atau saat POST tapi data salah
         if (!$this->validate($rules)) {
+            // Kirim helper validasi ke view
+            $data['validation'] = $this->validator;
+
             // Tampilkan halaman form ubah profile
             echo view('templates/header', $data);
             echo view('templates/sidebar', $data);
             echo view('templates/topbar', $data);
-            echo view('user/ubah-profile', $data);
+            echo view('user/ubah-profile', $data); // Ini memanggil view 'app/Views/user/ubah-profile.php'
             echo view('templates/footer');
         } else {
             // Jika validasi sukses (method POST)
             $nama = $this->request->getPost('nama');
-            $email = $this->request->getPost('email'); // Email ini (hidden) digunakan sebagai 'where'
+            $email_post = $this->request->getPost('email'); // Email ini (hidden) digunakan sebagai 'where'
             
-            // Siapkan data untuk update
             $dataToUpdate = [
                 'nama' => $nama,
             ];
 
-            // Cek jika ada file gambar diupload (CI4 way)
             $upload_image = $this->request->getFile('image');
 
-            if ($upload_image->isValid() && !$upload_image->hasMoved()) {
+            if ($upload_image && $upload_image->isValid() && !$upload_image->hasMoved()) {
                 
                 $gambar_lama = $data['user']['image'];
-                
-                // Buat nama file baru (sesuai modul: 'pro' + time)
                 $nama_gambar_baru = 'pro' . time() . '.' . $upload_image->getExtension();
-                
-                // Pindahkan file ke folder (CI4 way)
-                // Pastikan folder 'assets/img/profile/' ada dan writable
                 $upload_image->move(FCPATH . 'assets/img/profile/', $nama_gambar_baru);
-                
-                // Tambahkan gambar baru ke data update
                 $dataToUpdate['image'] = $nama_gambar_baru;
 
-                // Hapus gambar lama (jika bukan default)
                 if ($gambar_lama != 'default.jpg') {
-                    // Hapus file (CI4 FCPATH lebih aman)
-                    unlink(FCPATH . 'assets/img/profile/' . $gambar_lama);
+                    if (file_exists(FCPATH . 'assets/img/profile/' . $gambar_lama)) {
+                         unlink(FCPATH . 'assets/img/profile/' . $gambar_lama);
+                    }
                 }
             }
 
-            // Eksekusi Update (CI4 Model way)
-            // Ini lebih efisien daripada 2x query seperti di modul
-            $this->modelUser->where('email', $email)->set($dataToUpdate)->update();
+            // Eksekusi Update
+            $this->modelUser->where('email', $email_post)->set($dataToUpdate)->update();
 
-            // Set flashdata (CI4 way)
             session()->setFlashdata('pesan', '<div
             class="alert alert-success alert-message" role="alert">Profil
             Berhasil diubah </div>');
             
-            // Redirect (CI4 way)
             return redirect()->to('user');
         }
     }
