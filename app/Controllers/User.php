@@ -2,131 +2,145 @@
 
 namespace App\Controllers;
 
-use App\Models\ModelUser; // Pastikan ModelUser sudah dibuat
+// Import ModelUser yang sudah kita buat sebelumnya
+use App\Models\ModelUser;
 
-// Controller User harus memperluas BaseController
-class User extends BaseController 
+class User extends BaseController
 {
-    protected $ModelUser;
-    
-    // Memuat helper yang dibutuhkan: url, form, session, dan file
-    protected $helpers = ['url', 'form', 'session', 'filesystem'];
+    protected $modelUser;
 
+    /**
+     * Konstruktor
+     * Diadaptasi dari modul (hlm 86)
+     */
     public function __construct()
     {
-        // Inisialisasi ModelUser
-        parent::__construct();
-        $this->ModelUser = new ModelUser();
-
-        // Panggil helper cek_login() dari pustaka_helper.php (asumsi sudah dibuat di pertemuan 10)
-        // helper('pustaka'); // Uncomment baris ini setelah Anda membuat pustaka_helper.php
-        // cek_login(); // Uncomment baris ini setelah Anda membuat pustaka_helper.php
+        // Buat instance dari ModelUser
+        $this->modelUser = new ModelUser();
+        
+        // Panggil helper cek_login
+        cek_login();
     }
 
-    // ==================================================================================
-    // 1. HALAMAN MY PROFILE (INDEX) - Halaman 89
-    // ==================================================================================
+    /**
+     * Method index() (My Profile)
+     * Diadaptasi dari modul (hlm 87)
+     */
     public function index()
     {
-        $data['judul'] = 'Profil Saya'; // Halaman 89
+        $data['judul'] = 'Profil Saya';
         
-        // Ambil data user dari session (Halaman 89)
-        $data['user'] = $this->ModelUser->cekData(['email' => session()->get('email')])->getRowArray();
+        // Mengambil data user dari session CI4 (bukan $this->session->userdata)
+        $email = session()->get('email');
         
-        // Memuat view templates/header.php, templates/sidebar.php, templates/topbar.php, user/index.php, templates/footer.php
+        // Menggunakan ModelUser yang sudah kita buat
+        $data['user'] = $this->modelUser->cekData(['email' => $email]);
+
+        // Menampilkan view di CI4 (gunakan echo view() untuk templating)
         echo view('templates/header', $data);
         echo view('templates/sidebar', $data);
         echo view('templates/topbar', $data);
-        echo view('user/index', $data); // View My Profile
+        echo view('user/index', $data);
         echo view('templates/footer');
     }
 
-    // ==================================================================================
-    // 2. DATA ANGGOTA (ANGGOTA) - Halaman 89
-    // ==================================================================================
+    /**
+     * Method anggota()
+     * Diadaptasi dari modul (hlm 87)
+     */
     public function anggota()
     {
-        $data['judul'] = 'Data Anggota'; // Halaman 89
+        $data['judul'] = 'Data Anggota';
+        $email = session()->get('email');
+        $data['user'] = $this->modelUser->cekData(['email' => $email]);
         
-        // Ambil data user yang sedang login (Halaman 89)
-        $data['user'] = $this->ModelUser->cekData(['email' => session()->get('email')])->getRowArray();
-        
-        // Ambil data anggota (role_id = 2) 
-        $data['anggota'] = $this->db->table('user')->getWhere(['role_id' => 2])->getResultArray(); // Asumsi role_id 2 adalah member
+        // Adaptasi query CI3: $this->db->where('role_id', 1);
+        // Catatan: role_id 1 adalah 'administrator', role_id 2 adalah 'member'.
+        // Modul menggunakan role_id 1, jadi kita ikuti.
+        $data['anggota'] = $this->modelUser->where('role_id', 1)->findAll();
 
-        // Memuat view 
         echo view('templates/header', $data);
         echo view('templates/sidebar', $data);
         echo view('templates/topbar', $data);
-        echo view('user/anggota', $data); // View Data Anggota
+        echo view('user/anggota', $data);
         echo view('templates/footer');
     }
 
-    // ==================================================================================
-    // 3. UBAH PROFIL (UBAHPROFIL) - Halaman 90
-    // ==================================================================================
+    /**
+     * Method ubahProfil() (GET dan POST)
+     * Diadaptasi dari modul (hlm 87-91)
+     */
     public function ubahProfil()
     {
-        $data['judul'] = 'Ubah Profil'; // Halaman 90
-        $data['user'] = $this->ModelUser->cekData(['email' => session()->get('email')])->getRowArray(); // Halaman 90
-        
-        // 1. Mendefinisikan Aturan Validasi (Halaman 90)
+        $data['judul'] = 'Ubah Profil';
+        $email = session()->get('email');
+        $data['user'] = $this->modelUser->cekData(['email' => $email]);
+
+        // Aturan validasi CI4
         $rules = [
             'nama' => [
                 'label' => 'Nama Lengkap',
                 'rules' => 'required|trim',
-                'errors' => ['required' => 'Nama tidak Boleh Kosong']
+                'errors' => [
+                    'required' => 'Nama tidak Boleh Kosong'
+                ]
             ]
         ];
 
-        // 2. Jalankan Validasi
+        // Jika validasi gagal (CI4 way)
+        // Ini akan gagal saat request GET (halaman dibuka) atau saat POST tapi data salah
         if (!$this->validate($rules)) {
-            // Jika validasi GAGAL, tampilkan form ubah-profile (Halaman 90)
-            $data['validation'] = $this->validator;
+            // Tampilkan halaman form ubah profile
             echo view('templates/header', $data);
             echo view('templates/sidebar', $data);
             echo view('templates/topbar', $data);
-            echo view('user/ubah-profile', $data); // View Ubah Profile
+            echo view('user/ubah-profile', $data);
             echo view('templates/footer');
-            return;
-        } 
+        } else {
+            // Jika validasi sukses (method POST)
+            $nama = $this->request->getPost('nama');
+            $email = $this->request->getPost('email'); // Email ini (hidden) digunakan sebagai 'where'
+            
+            // Siapkan data untuk update
+            $dataToUpdate = [
+                'nama' => $nama,
+            ];
 
-        // 3. Jika validasi BERHASIL, proses update
-        $nama  = $this->request->getPost('nama', FILTER_SANITIZE_STRING); // Halaman 90
-        $email = $this->request->getPost('email'); // Email tidak boleh diubah (readonly)
+            // Cek jika ada file gambar diupload (CI4 way)
+            $upload_image = $this->request->getFile('image');
 
-        // Logika Upload Gambar (Halaman 90)
-        $upload_image = $this->request->getFile('image');
-        
-        if ($upload_image->isValid() && !$upload_image->hasMoved()) 
-        {
-            // Cek apakah ada gambar yang diupload (Halaman 90)
-            if ($upload_image->getName() != '') {
+            if ($upload_image->isValid() && !$upload_image->hasMoved()) {
                 
                 $gambar_lama = $data['user']['image'];
                 
-                // Jika gambar lama bukan default.jpg, hapus gambar lama (Halaman 90)
+                // Buat nama file baru (sesuai modul: 'pro' + time)
+                $nama_gambar_baru = 'pro' . time() . '.' . $upload_image->getExtension();
+                
+                // Pindahkan file ke folder (CI4 way)
+                // Pastikan folder 'assets/img/profile/' ada dan writable
+                $upload_image->move(FCPATH . 'assets/img/profile/', $nama_gambar_baru);
+                
+                // Tambahkan gambar baru ke data update
+                $dataToUpdate['image'] = $nama_gambar_baru;
+
+                // Hapus gambar lama (jika bukan default)
                 if ($gambar_lama != 'default.jpg') {
-                    unlink('assets/img/profile/' . $gambar_lama);
+                    // Hapus file (CI4 FCPATH lebih aman)
+                    unlink(FCPATH . 'assets/img/profile/' . $gambar_lama);
                 }
-
-                // Generate nama file baru
-                $gambar_baru = $upload_image->getRandomName();
-                
-                // Pindahkan file ke folder tujuan
-                $upload_image->move('assets/img/profile', $gambar_baru);
-                
-                // Update database dengan nama file baru
-                $this->db->table('user')->set('image', $gambar_baru);
             }
-        }
-        
-        // Update nama user (Halaman 90)
-        $this->db->table('user')->set('nama', $nama);
-        $this->db->table('user')->where('email', $email)->update(); // Kondisi update
 
-        // Set pesan sukses dan redirect (Halaman 91)
-        session()->setFlashdata('pesan', '<div class="alert alert-success alert-message" role="alert">Profil Berhasil diubah </div>');
-        return redirect()->to(base_url('user')); // Arahkan ke halaman My Profile
+            // Eksekusi Update (CI4 Model way)
+            // Ini lebih efisien daripada 2x query seperti di modul
+            $this->modelUser->where('email', $email)->set($dataToUpdate)->update();
+
+            // Set flashdata (CI4 way)
+            session()->setFlashdata('pesan', '<div
+            class="alert alert-success alert-message" role="alert">Profil
+            Berhasil diubah </div>');
+            
+            // Redirect (CI4 way)
+            return redirect()->to('user');
+        }
     }
 }

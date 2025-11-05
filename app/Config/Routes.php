@@ -1,98 +1,119 @@
 <?php
 
-use CodeIgniter\Router\RouteCollection;
+namespace Config;
 
-/**
- * @var RouteCollection $routes
+// Create a new instance of our RouteCollection class.
+$routes = Services::routes();
+
+/*
+ * --------------------------------------------------------------------
+ * Router Setup
+ * --------------------------------------------------------------------
+ */
+$routes->setDefaultNamespace('App\Controllers');
+$routes->setDefaultController('Home');
+$routes->setDefaultMethod('index');
+$routes->setTranslateURIDashes(false);
+$routes->set404Override();
+// The Auto Routing (Legacy) is very dangerous. It is easy to create vulnerable apps
+// where controller filters or CSRF protection are bypassed.
+// If you don't want to define all routes, please use the Auto Routing (Improved).
+// Set `$autoRoutesImproved` to true in `app/Config/Feature.php` and set the following to true.
+// $routes->setAutoRoute(false);
+
+/*
+ * --------------------------------------------------------------------
+ * Route Definitions
+ * --------------------------------------------------------------------
  */
 
-// =========================================================================
-// 1. KONTROLER UTAMA & HALAMAN DEFAULT
-// =========================================================================
+// We get a performance increase by specifying the default
+// route since we don't have to scan directories.
 
-// Rute Default: Diarahkan ke Controller Autentifikasi (Halaman Login)
-// Di modul, Autentifikasi dijadikan Controller default (Halaman 61)
-$routes->get('/', 'Autentifikasi::index'); 
+// Rute Default Proyek Pustaka Booking (Pertemuan 9)
+$routes->get('/', 'Autentifikasi::index');
 
 
-// =========================================================================
-// 2. TUGAS PERTEMUAN 3 (CONTOH MVC)
-// =========================================================================
+// --- Rute Autentifikasi (Login/Registrasi) ---
+// (Diadaptasi dari Pertemuan 9 & 10)
+$routes->group('autentifikasi', static function ($routes) {
+    // Method index (Login) - bisa GET (menampilkan) dan POST (submit)
+    $routes->match(['get', 'post'], '/', 'Autentifikasi::index');
+    
+    // Method registrasi - bisa GET (menampilkan) dan POST (submit)
+    $routes->match(['get', 'post'], 'registrasi', 'Autentifikasi::registrasi');
+    
+    // Method lain
+    $routes->get('logout', 'Autentifikasi::logout');
+    $routes->get('blok', 'Autentifikasi::blok');
+    $routes->get('gagal', 'Autentifikasi::gagal');
+    
+    // Asumsi dari view (hlm. 60)
+    $routes->get('lupaPassword', 'Autentifikasi::lupaPassword'); 
+});
 
-// Contoh 1 (Hanya Controller)
-$routes->get('contoh1', 'Contoh1::index');
 
-// Contoh 2 & 3 (Controller, View, Model - Penjumlahan)
-// URI: /latihan1/penjumlahan/n1/n2
+// --- Rute Admin (Dashboard) ---
+// (Diadaptasi dari Pertemuan 9)
+$routes->get('admin', 'Admin::index');
+
+
+// --- Rute User (Profil) ---
+// (Diadaptasi dari Pertemuan 10)
+$routes->group('user', static function ($routes) {
+    $routes->get('/', 'User::index');
+    $routes->get('anggota', 'User::anggota');
+    
+    // Method ubahProfil - bisa GET (menampilkan) dan POST (submit)
+    $routes->match(['get', 'post'], 'ubahProfil', 'User::ubahProfil');
+});
+
+
+// --- Rute Buku & Kategori ---
+// (Diadaptasi dari Pertemuan 11 & 12)
+$routes->group('buku', static function ($routes) {
+    // Method index (Data Buku) - bisa GET (menampilkan) dan POST (submit tambah)
+    $routes->match(['get', 'post'], '/', 'Buku::index');
+    
+    // Method ubahBuku - perlu ID (:num adalah placeholder angka)
+    $routes->match(['get', 'post'], 'ubahBuku/(:num)', 'Buku::ubahBuku/$1');
+    
+    // Method hapusBuku - perlu ID
+    $routes->get('hapusBuku/(:num)', 'Buku::hapusBuku/$1');
+
+    // Method Kategori - bisa GET (menampilkan) dan POST (submit tambah)
+    $routes->match(['get', 'post'], 'kategori', 'Buku::kategori');
+    
+    // Method hapusKategori - perlu ID
+    $routes->get('hapusKategori/(:num)', 'Buku::hapusKategori/$1');
+});
+
+
+// --- Rute Latihan Awal (Opsional) ---
+// (Diadaptasi dari Pertemuan 3, 4, 5)
+$routes->get('latihan1', 'Latihan1::index');
 $routes->get('latihan1/penjumlahan/(:num)/(:num)', 'Latihan1::penjumlahan/$1/$2');
 
+$routes->get('matakuliah', 'Matakuliah::index');
+$routes->post('matakuliah/cetak', 'Matakuliah::cetak');
 
-// =========================================================================
-// 3. TUGAS PERTEMUAN 4 (TEMPLATING)
-// =========================================================================
-
-// Controller Web (Home dan About)
 $routes->get('web', 'Web::index');
 $routes->get('web/about', 'Web::about');
 
 
-// =========================================================================
-// 4. TUGAS PERTEMUAN 5 (FORM VALIDASI)
-// =========================================================================
-
-// Controller Matakuliah (Form Validation)
-$routes->get('matakuliah', 'Matakuliah::index');
-$routes->post('matakuliah/cetak', 'Matakuliah::cetak');
-
-
-// =========================================================================
-// 5. TUGAS PERTEMUAN 9 & 10 (AUTENTIFIKASI & REGISTRASI)
-// =========================================================================
-
-// Controller Autentifikasi (Login & Logout)
-$routes->get('autentifikasi', 'Autentifikasi::index');
-$routes->post('autentifikasi', 'Autentifikasi::index'); // Menggunakan POST untuk proses login
-$routes->get('autentifikasi/logout', 'Autentifikasi::logout');
-
-// Registrasi
-$routes->get('autentifikasi/registrasi', 'Autentifikasi::registrasi');
-$routes->post('autentifikasi/registrasi', 'Autentifikasi::registrasi'); // Menggunakan POST untuk proses registrasi
-
-// Halaman Error (Blok/Gagal)
-$routes->get('autentifikasi/blok', 'Autentifikasi::blok');
-$routes->get('autentifikasi/gagal', 'Autentifikasi::gagal');
-
-
-// =========================================================================
-// 6. TUGAS PERTEMUAN 9 & 10 (ADMIN & USER)
-// =========================================================================
-
-// Controller Admin (Dashboard)
-$routes->get('admin', 'Admin::index');
-
-// Controller User (Profile & Data Anggota)
-$routes->get('user', 'User::index');
-$routes->get('user/anggota', 'User::anggota');
-
-// Ubah Profile
-$routes->get('user/ubahprofil', 'User::ubahProfil');
-$routes->post('user/ubahprofil', 'User::ubahProfil'); // Menggunakan POST untuk proses update
-
-
-// =========================================================================
-// 7. TUGAS PERTEMUAN 11 & 12 (MANAJEMEN BUKU & KATEGORI)
-// =========================================================================
-
-// Controller Buku (Data Buku)
-$routes->get('buku', 'Buku::index');
-$routes->post('buku', 'Buku::index'); // Menggunakan POST untuk proses tambah buku
-$routes->get('buku/ubahbuku/(:num)', 'Buku::ubahBuku/$1');
-$routes->post('buku/ubahbuku', 'Buku::ubahBuku'); // Menggunakan POST untuk proses update
-$routes->get('buku/hapusbuku/(:num)', 'Buku::hapusBuku/$1');
-
-// Controller Buku (Data Kategori)
-$routes->get('buku/kategori', 'Buku::kategori');
-$routes->post('buku/kategori', 'Buku::kategori'); // Menggunakan POST untuk proses tambah kategori
-$routes->get('buku/hapuskategori/(:num)', 'Buku::hapusKategori/$1');
-
-// =========================================================================//
+/*
+ * --------------------------------------------------------------------
+ * Additional Routing
+ * --------------------------------------------------------------------
+ *
+ * There will often be times that you need additional routing and you
+ * need it to be able to override any defaults in this file. Environment
+ * based routes is one such time. require() additional route files here
+ * to make that happen.
+ *
+ * You will have access to the $routes object within that file without
+ * needing to reload it.
+ */
+if (is_file(APPPATH . 'Config/' . ENVIRONMENT . '/Routes.php')) {
+    require APPPATH . 'Config/' . ENVIRONMENT . '/Routes.php';
+}

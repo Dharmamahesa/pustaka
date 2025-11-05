@@ -6,55 +6,80 @@ use CodeIgniter\Model;
 
 class ModelUser extends Model
 {
-    // ==================================================================================
-    // KONFIGURASI MODEL
-    // ==================================================================================
-    // Nama tabel yang digunakan oleh Model (Halaman 42)
-    protected $table = 'user'; 
-    protected $primaryKey = 'id'; 
+    // Tentukan tabel yang akan digunakan
+    protected $table            = 'user';
     
-    // Field yang diizinkan untuk diisi saat insert/update
-    protected $allowedFields = ['nama', 'email', 'image', 'password', 'role_id', 'is_active', 'tanggal_input'];
+    // Tentukan primary key
+    protected $primaryKey       = 'id';
     
+    // Tentukan kolom yang diizinkan untuk diisi
+    protected $allowedFields    = [
+        'nama', 
+        'email', 
+        'image', 
+        'password', 
+        'role_id', 
+        'is_active', 
+        'tanggal_input'
+    ];
 
-    // ==================================================================================
-    // MANAJEMEN DATA (Halaman 46)
-    // ==================================================================================
+    // Kita tidak menggunakan timestamps bawaan CI4
+    protected $useTimestamps = false;
 
-    // Fungsi untuk menyimpan data user baru (digunakan saat Registrasi) (Halaman 46, simpanData)
+    /**
+     * Menyimpan data user baru (untuk registrasi)
+     * Adaptasi dari hlm. 85
+     */
     public function simpanData($data = null)
     {
-        // Menggunakan Query Builder CI4
-        return $this->db->table($this->table)->insert($data);
+        // CI4: Cukup gunakan $this->insert()
+        // Ini setara dengan $this->db->insert('user', $data);
+        return $this->insert($data);
     }
 
-    // Fungsi untuk cek data atau mendapatkan data user berdasarkan kondisi (Halaman 46, cekData & getUserWhere)
-    // Digunakan untuk proses login
+    /**
+     * Mengambil 1 baris data user berdasarkan kondisi
+     * Adaptasi dari hlm. 85
+     * * Menggunakan ->getRowArray() untuk mengembalikan array,
+     * agar tidak error di controller atau view.
+     */
     public function cekData($where = null)
     {
-        return $this->db->table($this->table)->getWhere($where);
+        // Ini setara dengan $this->db->get_where('user', $where);
+        return $this->where($where)->get()->getRowArray();
     }
-    
-    // Fungsi untuk mendapatkan data user dengan batasan 10 data (Halaman 49, getUserLimit)
+
+    /**
+     * Mengambil 1 baris data user berdasarkan kondisi
+     * Adaptasi dari hlm. 86
+     */
+    public function getUserWhere($where = null)
+    {
+        // Ini setara dengan $this->db->get_where('user', $where);
+        return $this->where($where)->get()->getRowArray();
+    }
+
+    /**
+     * Mengambil data user dengan limit
+     * Adaptasi dari hlm. 86
+     * * Menggunakan ->getResultArray() untuk mengambil
+     * semua hasil sebagai array.
+     */
     public function getUserLimit()
     {
-        // Menggunakan Query Builder CI4
-        return $this->db->table($this->table)
-                        ->select('*')
-                        ->limit(10) // Batasi 10 baris
-                        ->get();
+        // Ini setara dengan $this->db->select('*'); $this->db->from('user');
+        // $this->db->limit(10, 0); return $this->db->get();
+        return $this->limit(10, 0)->get()->getResultArray();
     }
-    
-    // Fungsi untuk mengecek hak akses user
-    // Asumsi: Anda memiliki tabel 'access_menu' untuk logika ini (Halaman 48)
+
+    /**
+     * Mengecek akses user (Code dari modul hlm. 86)
+     * Catatan: Tabel 'access_menu' tidak ada di pustaka.sql,
+     * jadi fungsi ini mungkin tidak akan terpakai.
+     */
     public function cekUserAccess($where = null)
     {
-        return $this->db->table('access_menu')
-                        ->select('*')
-                        ->where($where)
-                        ->get();
+        // Kode ini diadaptasi langsung dari modul
+        return $this->db->table('access_menu')->where($where)->get();
     }
-    
-    // Note: Fungsi getUSerWhere() di modul memiliki fungsi yang sama dengan cekData()
-    // di CI4, keduanya bisa diimplementasikan dengan method getWhere().
 }

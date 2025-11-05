@@ -35,7 +35,7 @@ abstract class BaseController extends Controller
      *
      * @var array
      */
-    protected $helpers = []; // [PENTING]: Proyek Anda akan menggunakan property ini
+    protected $helpers = ['url', 'session', 'pustaka']; // [PENTING]: Proyek Anda akan menggunakan property ini
 
     /**
      * Constructor.
