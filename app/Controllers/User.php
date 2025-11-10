@@ -2,13 +2,19 @@
 
 namespace App\Controllers;
 
-// Import ModelUser dan BaseController CI4
+// Import Model CI4
 use App\Models\ModelUser;
+use App\Models\ModelBooking; // Diperlukan untuk riwayat
+use App\Models\ModelPinjam;  // Diperlukan untuk riwayat
 
 class User extends BaseController
 {
     protected $modelUser;
-    protected $helpers = ['form', 'url', 'session']; // Memuat helper untuk CI4
+    protected $modelBooking;
+    protected $modelPinjam;
+    
+    // Tentukan helper yang akan digunakan di controller ini
+    protected $helpers = ['form', 'url', 'session'];
 
     /**
      * Konstruktor
@@ -16,32 +22,40 @@ class User extends BaseController
      */
     public function __construct()
     {
-        // Buat instance dari ModelUser
+        // Buat instance dari Model
         $this->modelUser = new ModelUser();
+        $this->modelBooking = new ModelBooking();
+        $this->modelPinjam = new ModelPinjam();
         
         // Panggil helper cek_login (pastikan 'pustaka' helper ada di Autoload.php)
         cek_login();
     }
 
     /**
-     * Method index() (My Profile)
+     * Method index() (Halaman "Profil Saya")
      * Diadaptasi dari modul (hlm 87)
+     * Berfungsi untuk Admin dan Member
      */
     public function index()
     {
         $data['judul'] = 'Profil Saya';
+        
+        // Mengambil data user dari session CI4
         $email = session()->get('email');
+        
+        // Menggunakan ModelUser
         $data['user'] = $this->modelUser->cekData(['email' => $email]);
 
+        // Menampilkan view di CI4
         echo view('templates/header', $data);
         echo view('templates/sidebar', $data);
         echo view('templates/topbar', $data);
-        echo view('user/index', $data); // Ini memanggil view 'app/Views/user/index.php'
+        echo view('user/index', $data); // Memanggil app/Views/user/index.php
         echo view('templates/footer');
     }
 
     /**
-     * Method anggota()
+     * Method anggota() (Halaman "Data Anggota" - Dilihat Admin)
      * Diadaptasi dari modul (hlm 87)
      */
     public function anggota()
@@ -50,22 +64,22 @@ class User extends BaseController
         $email = session()->get('email');
         $data['user'] = $this->modelUser->cekData(['email' => $email]);
         
-        // Mengambil semua 'admin' (role_id 1)
-        $data['anggota'] = $this->modelUser->where('role_id', 1)->findAll();
+        // Mengambil semua data 'member' (role_id = 2)
+        $data['anggota'] = $this->modelUser->where('role_id', 2)->findAll();
 
         echo view('templates/header', $data);
         echo view('templates/sidebar', $data);
         echo view('templates/topbar', $data);
-        echo view('user/anggota', $data); // Ini memanggil view 'app/Views/user/anggota.php'
+        echo view('user/anggota', $data); // Memanggil app/Views/user/anggota.php
         echo view('templates/footer');
     }
 
     /**
-     * Method ubahProfil() (GET dan POST)
+     * Method ubahprofil() (Halaman "Ubah Profil")
      * Diadaptasi dari modul (hlm 87-91)
-     * NAMA METHOD HARUS SAMA DENGAN ROUTE (ubahprofil)
+     * Berfungsi untuk GET (menampilkan form) dan POST (memproses data)
      */
-    public function ubahprofil() // Nama method diubah menjadi lowercase
+    public function ubahprofil() 
     {
         $data['judul'] = 'Ubah Profil';
         $email = session()->get('email');
@@ -82,15 +96,16 @@ class User extends BaseController
             ]
         ];
 
-        if (!$this->validate($rules)) {
-            // Kirim helper validasi ke view
+        // Logika CI4: Jika method BUKAN post, atau JIKA validasi GAGAL
+        if ($this->request->getMethod() !== 'post' || !$this->validate($rules)) {
+            // Kirim helper validasi ke view (jika ada error)
             $data['validation'] = $this->validator;
 
             // Tampilkan halaman form ubah profile
             echo view('templates/header', $data);
             echo view('templates/sidebar', $data);
             echo view('templates/topbar', $data);
-            echo view('user/ubah-profile', $data); // Ini memanggil view 'app/Views/user/ubah-profile.php'
+            echo view('user/ubah-profile', $data); // Memanggil app/Views/user/ubah-profile.php
             echo view('templates/footer');
         } else {
             // Jika validasi sukses (method POST)
@@ -101,23 +116,29 @@ class User extends BaseController
                 'nama' => $nama,
             ];
 
+            // Cek jika ada file gambar diupload
             $upload_image = $this->request->getFile('image');
 
             if ($upload_image && $upload_image->isValid() && !$upload_image->hasMoved()) {
                 
                 $gambar_lama = $data['user']['image'];
-                $nama_gambar_baru = 'pro' . time() . '.' . $upload_image->getExtension();
+                
+                // Buat nama file random (CI4 style)
+                $nama_gambar_baru = $upload_image->getRandomName();
+                
+                // Pindahkan file ke folder public/assets/img/profile/
                 $upload_image->move(FCPATH . 'assets/img/profile/', $nama_gambar_baru);
+                
+                // Tambahkan nama gambar baru ke data update
                 $dataToUpdate['image'] = $nama_gambar_baru;
 
-                if ($gambar_lama != 'default.jpg') {
-                    if (file_exists(FCPATH . 'assets/img/profile/' . $gambar_lama)) {
-                         unlink(FCPATH . 'assets/img/profile/' . $gambar_lama);
-                    }
+                // Hapus gambar lama (jika bukan default.jpg)
+                if ($gambar_lama != 'default.jpg' && file_exists(FCPATH . 'assets/img/profile/' . $gambar_lama)) {
+                     unlink(FCPATH . 'assets/img/profile/' . $gambar_lama);
                 }
             }
 
-            // Eksekusi Update
+            // Eksekusi Update ke database
             $this->modelUser->where('email', $email_post)->set($dataToUpdate)->update();
 
             session()->setFlashdata('pesan', '<div
@@ -126,5 +147,35 @@ class User extends BaseController
             
             return redirect()->to('user');
         }
+    }
+
+    /**
+     * (FITUR BARU DARI LANGKAH SEBELUMNYA)
+     * Halaman Riwayat Peminjaman Member
+     */
+    public function riwayatPeminjaman()
+    {
+        $data['judul'] = 'Riwayat Peminjaman Buku';
+        $email = session()->get('email');
+        $user = $this->modelUser->cekData(['email' => $email]);
+        $id_user = $user['id'];
+        
+        $data['user'] = $user;
+        
+        // Mengambil data peminjaman yang sedang berlangsung (status='Pinjam')
+        $data['pinjam'] = $this->modelPinjam->joinData()
+                            ->where(['p.id_user' => $id_user, 'p.status' => 'Pinjam'])
+                            ->get()->getResultArray();
+                            
+        // Mengambil data peminjaman yang sudah selesai (status='Kembali')
+        $data['kembali'] = $this->modelPinjam->joinData()
+                             ->where(['p.id_user' => $id_user, 'p.status' => 'Kembali'])
+                             ->get()->getResultArray();
+
+        echo view('templates/header', $data);
+        echo view('templates/sidebar', $data);
+        echo view('templates/topbar', $data);
+        echo view('user/riwayat_peminjaman', $data); // Memanggil app/Views/user/riwayat_peminjaman.php
+        echo view('templates/footer');
     }
 }

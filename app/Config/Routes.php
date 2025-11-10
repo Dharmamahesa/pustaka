@@ -96,8 +96,51 @@ $routes->post('matakuliah/cetak', 'Matakuliah::cetak');
 
 $routes->get('web', 'Web::index');
 $routes->get('web/about', 'Web::about');
+$routes->group('booking', static function ($routes) {
+    // Memerlukan login
+    $routes->get('/', 'Booking::index');
+    $routes->get('tambahBooking/(:num)', 'Booking::tambahBooking/$1');
+    $routes->get('hapusbooking/(:num)', 'Booking::hapusbooking/$1');
+    $routes->get('bookingSelesai', 'Booking::bookingSelesai');
+    $routes->get('exportToPdf/(:any)', 'Booking::exportToPdf/$1');
+});
+$routes->group('pinjam', ['filter' => 'auth'], static function ($routes) {
+    // Memerlukan login admin
+    $routes->get('/', 'Pinjam::index');
+    $routes->get('daftarBooking', 'Pinjam::daftarBooking');
+    $routes->get('pinjamAct/(:any)', 'Pinjam::pinjamAct/$1');
+    $routes->get('ubahStatus/(:any)', 'Pinjam::ubahStatus/$1');
+});
+// --- Rute Laporan (Admin) ---
+$routes->group('laporan', ['filter' => 'auth'], static function ($routes) {
+    // Laporan Buku
+    $routes->get('laporan_buku', 'Laporan::laporan_buku');
+    $routes->get('cetak_laporan_buku', 'Laporan::cetak_laporan_buku');
+    $routes->get('laporan_buku_pdf', 'Laporan::laporan_buku_pdf');
+    $routes->get('export_excel_buku', 'Laporan::export_excel_buku');
 
+    // Laporan Anggota
+    $routes->get('laporan_anggota', 'Laporan::laporan_anggota');
+    $routes->get('cetak_laporan_anggota', 'Laporan::cetak_laporan_anggota');
+    $routes->get('laporan_anggota_pdf', 'Laporan::laporan_anggota_pdf');
+    $routes->get('export_excel_anggota', 'Laporan::export_excel_anggota');
 
+    // Laporan Pinjam (Bisa GET untuk tampil, POST untuk submit filter)
+    $routes->match(['get', 'post'], 'laporan_pinjam', 'Laporan::laporan_pinjam');
+    // Rute cetak pinjam (ini dipanggil internal oleh 'laporan_pinjam' saat POST,
+    // tapi kita buat juga rute GET jika diperlukan)
+    $routes->get('laporan_pinjam_print', 'Laporan::laporan_pinjam_print');
+    $routes->get('laporan_pinjam_pdf', 'Laporan::laporan_pinjam_pdf');
+    $routes->get('export_excel_pinjam', 'Laporan::export_excel_pinjam');
+});
+$routes->group('user', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'User::index');
+    $routes->get('anggota', 'User::anggota');
+    $routes->match(['get', 'post'], 'ubahprofil', 'User::ubahprofil');
+    
+    // !! TAMBAHKAN RUTE INI !!
+    $routes->get('riwayatPeminjaman', 'User::riwayatPeminjaman');
+});
 /*
  * --------------------------------------------------------------------
  * Additional Routing
