@@ -5,69 +5,63 @@ namespace App\Controllers;
 use App\Models\ModelBuku;
 use App\Models\ModelUser;
 use App\Models\ModelPinjam;
-use Dompdf\Dompdf; // Panggil library Dompdf
+use Dompdf\Dompdf;
 
 class Laporan extends BaseController
 {
     protected $ModelBuku;
     protected $ModelUser;
     protected $ModelPinjam;
-    protected $helpers = ['form', 'url', 'session']; // Muat helper
+    protected $helpers = ['form', 'url', 'session'];
 
     public function __construct()
     {
-        // Inisialisasi model
         $this->ModelBuku = new ModelBuku();
         $this->ModelUser = new ModelUser();
         $this->ModelPinjam = new ModelPinjam();
         
-        // Panggil helper cek_login
         cek_login();
     }
 
     // --- LAPORAN BUKU ---
 
-    /**
-     * Halaman utama Laporan Buku
-     */
     public function laporan_buku()
     {
         $data['judul'] = 'Laporan Data Buku';
         $data['user'] = $this->ModelUser->cekData(['email' => session()->get('email')]);
+        
+        // PERBAIKAN: Hapus ->getResultArray()
+        $data['buku'] = $this->ModelBuku->getBuku();
+        
+        $data['kategori'] = $this->ModelBuku->getKategori();
 
         echo view('templates/header', $data);
         echo view('templates/sidebar', $data);
         echo view('templates/topbar', $data);
-        // PERBAIKAN: Path view disesuaikan ke folder 'laporan'
-        echo view('laporan/laporan_buku', $data); 
+        echo view('buku/laporan_buku', $data);
         echo view('templates/footer');
     }
 
-    /**
-     * Aksi Cetak Print Laporan Buku
-     */
     public function cetak_laporan_buku()
     {
-        $data['buku'] = $this->ModelBuku->getBuku()->getResultArray();
         $data['judul'] = "Laporan Data Buku";
-        // View ini tetap di folder 'buku' sesuai instruksi sebelumnya
+        // PERBAIKAN: Hapus ->getResultArray()
+        $data['buku'] = $this->ModelBuku->getBuku();
+        
         echo view('buku/laporan_print_buku', $data); 
     }
 
-    /**
-     * Aksi Download PDF Laporan Buku
-     */
     public function laporan_buku_pdf()
     {
-        $data['buku'] = $this->ModelBuku->getBuku()->getResultArray();
         $data['judul'] = "Laporan Data Buku"; 
+        // PERBAIKAN: Hapus ->getResultArray()
+        $data['buku'] = $this->ModelBuku->getBuku();
 
         $dompdf = new Dompdf();
         $options = $dompdf->getOptions();
         $options->set(array('isRemoteEnabled' => true));
         $dompdf->setOptions($options);
         
-        // View ini tetap di folder 'buku' sesuai instruksi sebelumnya
         $dompdf->loadHtml(view('buku/laporan_pdf_buku', $data)); 
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
@@ -75,14 +69,12 @@ class Laporan extends BaseController
         $dompdf->stream('laporan_data_buku.pdf', array('Attachment' => 0));
     }
 
-    /**
-     * Aksi Export Excel Laporan Buku
-     */
     public function export_excel_buku()
     {
         $data = [
             'judul' => 'Laporan Data Buku',
-            'buku' => $this->ModelBuku->getBuku()->getResultArray()
+            // PERBAIKAN: Hapus ->getResultArray()
+            'buku' => $this->ModelBuku->getBuku()
         ];
         
         $this->response
@@ -99,6 +91,7 @@ class Laporan extends BaseController
     {
         $data['judul'] = 'Laporan Data Anggota';
         $data['user'] = $this->ModelUser->cekData(['email' => session()->get('email')]);
+        $data['anggota'] = $this->ModelUser->where('role_id !=', 1)->findAll();
 
         echo view('templates/header', $data);
         echo view('templates/sidebar', $data);
@@ -148,9 +141,6 @@ class Laporan extends BaseController
 
     // --- LAPORAN PINJAM ---
     
-    /**
-     * Halaman utama Laporan Pinjam (dengan filter tanggal)
-     */
     public function laporan_pinjam()
     {
         $data['judul'] = 'Laporan Data Peminjaman';

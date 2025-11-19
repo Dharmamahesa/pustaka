@@ -14,17 +14,16 @@ class ModelPinjam extends Model
     ];
 
     /**
-     * Mengembalikan Query Builder untuk join tabel pinjam, booking, dan user.
-     * Tidak diakhiri dengan get() agar bisa di-chaining di Controller.
+     * Mengembalikan Query Builder untuk join tabel pinjam dan user.
      */
     public function joinData()
     {
         $builder = $this->db->table('pinjam p');
         $builder->select('*');
-        $builder->join('booking b', 'b.id_booking = p.id_booking');
+        // PERBAIKAN: Jangan join ke tabel booking, karena datanya sudah dihapus saat dipinjam
         $builder->join('user u', 'u.id = p.id_user');
         
-        return $builder; // Mengembalikan builder, bukan hasil execute
+        return $builder; 
     }
 
     /**
@@ -47,7 +46,7 @@ class ModelPinjam extends Model
         return $this->db->table('pinjam_detail')->insert($data);
     }
 
-    // Method pembantu generik (adaptasi dari CI3)
+    // Method pembantu generik
     public function getDatabyId($table, $where)
     {
         return $this->db->table($table)->where($where)->get()->getRowArray();
@@ -68,9 +67,6 @@ class ModelPinjam extends Model
         return $this->db->table($table)->where($where)->delete();
     }
 
-    /**
-     * Kode Otomatis untuk no_pinjam
-     */
     public function kodeOtomatis($key, $table)
     {
         $builder = $this->db->table($table);
@@ -87,13 +83,10 @@ class ModelPinjam extends Model
         }
 
         $batas = str_pad($kode, 3, "0", STR_PAD_LEFT);
-        $kode_tampil = date('dmY') . $batas; // Format contoh: 18112025001
+        $kode_tampil = date('dmY') . $batas; 
         return $kode_tampil;
     }
 
-    /**
-     * Query khusus untuk Laporan Peminjaman
-     */
     public function laporanPeminjaman($tgl_mulai, $tgl_akhir) 
     {
          $builder = $this->db->table('pinjam p');
