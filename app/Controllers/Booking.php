@@ -2,45 +2,47 @@
 
 namespace App\Controllers;
 
+use App\Controllers\BaseController;
 use App\Models\ModelBooking;
 use App\Models\ModelUser;
 use App\Models\ModelBuku;
-use Dompdf\Dompdf; // Panggil library Dompdf
+use Dompdf\Dompdf; // Pastikan library Dompdf sudah terinstall via Composer
 
 class Booking extends BaseController
 {
     protected $ModelBooking;
     protected $ModelUser;
     protected $ModelBuku;
-    protected $helpers = ['form', 'url', 'session']; // Muat helper
+    
+    // Memuat helper yang dibutuhkan
+    protected $helpers = ['form', 'url', 'session'];
 
     public function __construct()
     {
-        // Inisialisasi model
+        // Inisialisasi Model
         $this->ModelBooking = new ModelBooking();
         $this->ModelUser = new ModelUser();
         $this->ModelBuku = new ModelBuku();
         
-        // Panggil helper cek_login
+        // Cek Login (Pastikan user sudah login sebelum akses controller ini)
         cek_login();
     }
 
     /**
-     * Halaman Keranjang Booking (Keranjang Belanja)
-     * Menampilkan data buku di tabel 'temp'
+     * Halaman Keranjang (Data Booking Sementara)
      */
     public function index()
     {
         $email_user = session()->get('email');
         $user = $this->ModelUser->cekData(['email' => $email_user]);
-        $id_user = $user['id']; // Ambil id_user
+        $id_user = $user['id'];
         
-        $data['user'] = $user;
-        $data['judul'] = "Data Booking";
-        $data['booking'] = $this->ModelBooking->getDataTemp(['id_user' => $id_user]);
-        
-        // Hitung isi keranjang (tabel temp)
-        $data['count_temp'] = $this->ModelBooking->getCountTemp(['id_user' => $id_user]);
+        $data = [
+            'judul' => "Data Booking",
+            'user' => $user,
+            'booking' => $this->ModelBooking->getDataTemp(['id_user' => $id_user]),
+            'count_temp' => $this->ModelBooking->getCountTemp(['id_user' => $id_user])
+        ];
         
         echo view('templates/templates-user/header', $data);
         echo view('booking/data-booking', $data);
@@ -48,38 +50,39 @@ class Booking extends BaseController
     }
 
     /**
-     * Aksi untuk menambah buku ke keranjang (tabel temp)
+     * Proses Tambah Buku ke Keranjang (Tabel Temp)
      */
     public function tambahBooking($id_buku)
     {
         $email_user = session()->get('email');
         $user = $this->ModelUser->cekData(['email' => $email_user]);
-        $id_user = $user['id']; // Dapatkan id_user
+        $id_user = $user['id'];
 
-        // Ambil data buku
-        $buku = $this->ModelBuku->bukuWhere(['id' => $id_buku])->getRowArray();
+        // PERBAIKAN: Menggunakan first() bukan getRowArray()
+        // first() otomatis mengambil 1 baris data sebagai array di CI4
+        $buku = $this->ModelBuku->bukuWhere(['id' => $id_buku])->first();
 
-        // Validasi 1: Cek stok
+        // 1. Validasi Stok Buku
         if ($buku['stok'] < 1) {
             session()->setFlashdata('pesan', '<div class="alert alert-danger" role="alert">Stok buku yang Anda pilih habis!</div>');
             return redirect()->to(base_url());
         }
 
-        // Validasi 2: Cek maksimal 3 buku
+        // 2. Validasi Maksimal Booking (Maks 3 Buku)
         $cekBooking = $this->ModelBooking->getCountTemp(['id_user' => $id_user]);
         if ($cekBooking >= 3) {
             session()->setFlashdata('pesan', '<div class="alert alert-danger" role="alert">Maksimal 3 buku yang dapat dibooking!</div>');
             return redirect()->to(base_url());
         }
 
-        // Validasi 3: Cek apakah buku sudah ada di keranjang
+        // 3. Validasi Buku Kembar (Tidak boleh booking buku yang sama)
         $cekBukuTemp = $this->ModelBooking->getCountTemp(['id_user' => $id_user, 'id_buku' => $id_buku]);
         if ($cekBukuTemp > 0) {
             session()->setFlashdata('pesan', '<div class="alert alert-danger" role="alert">Buku ini sudah ada di keranjang Anda!</div>');
             return redirect()->to(base_url());
         }
 
-        // Jika lolos validasi, masukkan ke tabel temp
+        // Jika lolos validasi, simpan ke tabel temp
         $data = [
             'id_user' => $id_user,
             'email_user' => $email_user,
@@ -99,13 +102,12 @@ class Booking extends BaseController
     }
 
     /**
-     * Aksi untuk menghapus buku dari keranjang
+     * Hapus Item dari Keranjang
      */
     public function hapusbooking($id_buku)
     {
-        $email_user = session()->get('email');
-        $user = $this->ModelUser->cekData(['email' => $email_user]);
-        $id_user = $user['id']; // Dapatkan id_user
+        $user = $this->ModelUser->cekData(['email' => session()->get('email')]);
+        $id_user = $user['id'];
 
         $this->ModelBooking->deleteData(['id_buku' => $id_buku, 'id_user' => $id_user], 'temp');
         
@@ -114,16 +116,16 @@ class Booking extends BaseController
     }
 
     /**
-     * Aksi untuk menyelesaikan proses booking
-     * Memindahkan data dari 'temp' ke 'booking' dan 'booking_detail'
+     * Selesaikan Booking
+     * Pindahkan data dari Temp -> Booking Detail & Update Stok
      */
     public function bookingSelesai()
     {
-        $email_user = session()->get('email');
-        $user = $this->ModelUser->cekData(['email' => $email_user]);
-        $id_user = $user['id']; // Dapatkan id_user
+        $user = $this->ModelUser->cekData(['email' => session()->get('email')]);
+        $id_user = $user['id'];
 
         $tgl_sekarang = date('Y-m-d');
+        // Generate ID Booking (Pastikan fungsi kodeOtomatis ada di ModelBooking)
         $id_booking = $this->ModelBooking->kodeOtomatis('id_booking', 'booking');
         
         $data_booking = [
@@ -133,27 +135,36 @@ class Booking extends BaseController
             'id_user' => $id_user
         ];
 
-        // Simpan ke tabel booking
+        // 1. Simpan ke tabel booking (Header)
         $this->ModelBooking->simpanData('booking', $data_booking);
 
-        // Ambil semua data dari temp, pindahkan ke booking_detail
+        // 2. Ambil data dari keranjang (temp)
         $tempData = $this->ModelBooking->getDataTemp(['id_user' => $id_user]);
+        
         foreach ($tempData as $row) {
             $data_detail = [
                 'id_booking' => $id_booking,
                 'id_buku' => $row['id_buku']
             ];
+            
+            // A. Simpan ke tabel booking_detail
             $this->ModelBooking->simpanData('booking_detail', $data_detail);
+            
+            // B. Update Stok Buku (Kurangi Stok, Tambah Dibooking)
+            // Pastikan method kurangiStok ada di ModelBuku
+            $this->ModelBuku->kurangiStok($row['id_buku']);
         }
 
-        // Kosongkan tabel temp
+        // 3. Bersihkan Keranjang (Temp)
         $this->ModelBooking->deleteData(['id_user' => $id_user], 'temp');
 
-        // Tampilkan halaman info booking
-        $data['user'] = $user;
-        $data['judul'] = "Booking Selesai";
-        $data['info'] = $this->ModelBooking->getDatabyId('booking', ['id_booking' => $id_booking]);
-        $data['count_temp'] = 0; // Keranjang sudah kosong
+        // Tampilkan halaman Info/Sukses
+        $data = [
+            'judul' => "Booking Selesai",
+            'user' => $user,
+            'info' => $this->ModelBooking->getDatabyId('booking', ['id_booking' => $id_booking]),
+            'count_temp' => 0 
+        ];
         
         echo view('templates/templates-user/header', $data);
         echo view('booking/info-booking', $data);
@@ -161,29 +172,38 @@ class Booking extends BaseController
     }
 
     /**
-     * Mencetak bukti booking ke PDF
+     * Export Bukti Booking ke PDF
      */
     public function exportToPdf($id_booking)
     {
-        $email_user = session()->get('email');
-        $user = $this->ModelUser->cekData(['email' => $email_user]);
+        $user = $this->ModelUser->cekData(['email' => session()->get('email')]);
 
-        $data['user'] = $user;
-        $data['judul'] = "Bukti Booking";
-        $data['booking'] = $this->ModelBooking->getDatabyId('booking', ['id_booking' => $id_booking]);
-        $data['detail'] = $this->ModelBooking->getBookingDetail($user['id']);
+        $data = [
+            'judul' => "Bukti Booking",
+            'user' => $user,
+            'booking' => $this->ModelBooking->getDatabyId('booking', ['id_booking' => $id_booking]),
+            'detail' => $this->ModelBooking->getBookingDetail($user['id'])
+        ];
 
-        // Persiapan Dompdf
+        // Inisialisasi Dompdf
         $dompdf = new Dompdf();
+        
+        // Opsi agar bisa load gambar/css dari URL
         $options = $dompdf->getOptions();
-        $options->set(array('isRemoteEnabled' => true));
+        $options->set(['isRemoteEnabled' => true]);
         $dompdf->setOptions($options);
         
+        // Load View ke PDF
         $dompdf->loadHtml(view('booking/bukti-pdf', $data));
+        
+        // Set Ukuran Kertas
         $dompdf->setPaper('A4', 'landscape');
+        
+        // Render PDF
         $dompdf->render();
         
-        // Output PDF
-        $dompdf->stream('bukti-booking-' . $id_booking . '.pdf', array('Attachment' => 0));
+        // Stream (Download/Preview)
+        // Attachment 0 = Preview di browser, 1 = Download otomatis
+        $dompdf->stream('bukti-booking-' . $id_booking . '.pdf', ['Attachment' => 0]);
     }
 }

@@ -9,56 +9,70 @@ class ModelPinjam extends Model
     protected $table = 'pinjam';
     protected $primaryKey = 'no_pinjam';
     protected $allowedFields = [
-        'no_pinjam', 
-        'tgl_pinjam', 
-        'id_booking', 
-        'id_user', 
-        'tgl_kembali', 
-        'tgl_pengembalian', 
-        'status', 
-        'total_denda'
+        'no_pinjam', 'tgl_pinjam', 'id_booking', 'id_user', 
+        'tgl_kembali', 'tgl_pengembalian', 'status', 'total_denda'
     ];
 
-    // Method untuk menyimpan data ke tabel pinjam
-    public function simpanPinjam($data)
+    /**
+     * Mengembalikan Query Builder untuk join tabel pinjam, booking, dan user.
+     * Tidak diakhiri dengan get() agar bisa di-chaining di Controller.
+     */
+    public function joinData()
     {
-        return $this->db->table($this->table)->insert($data);
+        $builder = $this->db->table('pinjam p');
+        $builder->select('*');
+        $builder->join('booking b', 'b.id_booking = p.id_booking');
+        $builder->join('user u', 'u.id = p.id_user');
+        
+        return $builder; // Mengembalikan builder, bukan hasil execute
     }
 
-    // Method untuk menyimpan data ke tabel pinjam_detail
+    /**
+     * Khusus untuk admin melihat daftar booking
+     */
+    public function getJoinBooking()
+    {
+        $builder = $this->db->table('booking b');
+        $builder->join('user u', 'u.id = b.id_user');
+        return $builder->get();
+    }
+
+    public function simpanPinjam($data)
+    {
+        return $this->insert($data);
+    }
+
     public function simpanDetail($data)
     {
         return $this->db->table('pinjam_detail')->insert($data);
     }
 
-    // Method untuk mengambil data dari tabel tertentu dengan kondisi
+    // Method pembantu generik (adaptasi dari CI3)
+    public function getDatabyId($table, $where)
+    {
+        return $this->db->table($table)->where($where)->get()->getRowArray();
+    }
+
     public function getDataWhere($table, $where)
     {
         return $this->db->table($table)->where($where)->get();
     }
-    
-    // Method untuk update data
+
     public function updateData($table, $data, $where)
     {
-        $this->db->table($table)->where($where)->update($data);
+        return $this->db->table($table)->where($where)->update($data);
     }
-
-    // Method untuk menghapus data
+    
     public function deleteData($where, $table)
     {
-        $this->db->table($table)->where($where)->delete();
+        return $this->db->table($table)->where($where)->delete();
     }
 
-    // Method untuk mengambil 1 baris data
-    public function getDatabyId($table, $where)
-    {
-        return $this->db->table($table)->where($where)->limit(1)->get()->getRowArray();
-    }
-
-    // Method untuk kode otomatis no_pinjam
+    /**
+     * Kode Otomatis untuk no_pinjam
+     */
     public function kodeOtomatis($key, $table)
     {
-        // Contoh CI3: $this->db->select('right(no_pinjam,3) as kode', false);
         $builder = $this->db->table($table);
         $builder->select('RIGHT(' . $key . ', 3) as kode', false);
         $builder->orderBy($key, 'DESC');
@@ -73,41 +87,21 @@ class ModelPinjam extends Model
         }
 
         $batas = str_pad($kode, 3, "0", STR_PAD_LEFT);
-        $kode_tampil = "PJ" . date('Ymd') . $batas;
+        $kode_tampil = date('dmY') . $batas; // Format contoh: 18112025001
         return $kode_tampil;
     }
 
     /**
-     * Join data Peminjaman
+     * Query khusus untuk Laporan Peminjaman
      */
-    public function joinData()
+    public function laporanPeminjaman($tgl_mulai, $tgl_akhir) 
     {
-        $builder = $this->db->table('pinjam p');
-        $builder->select('p.*, u.nama, u.email');
-        $builder->join('user u', 'u.id = p.id_user');
-        return $builder->get();
-    }
-
-    /**
-     * Join data booking (untuk halaman admin)
-     */
-    public function getJoinBooking()
-    {
-        $builder = $this->db->table('booking bo');
-        $builder->select('bo.*, u.nama, u.email');
-        $builder->join('user u', 'u.id = bo.id_user');
-        return $builder->get();
-    }
-    public function laporanPeminjaman($tgl_mulai, $tgl_akhir)
-    {
-        $builder = $this->db->table('pinjam p');
-        $builder->select('p.*, d.id_buku, d.denda, b.judul_buku, b.pengarang, b.penerbit, u.nama, u.email');
-        $builder->join('pinjam_detail d', 'p.no_pinjam = d.no_pinjam');
-        $builder->join('buku b', 'b.id = d.id_buku');
-        $builder->join('user u', 'u.id = p.id_user');
-        $builder->where('p.tgl_pinjam >=', $tgl_mulai);
-        $builder->where('p.tgl_pinjam <=', $tgl_akhir);
-        
-        return $builder->get()->getResultArray();
+         $builder = $this->db->table('pinjam p');
+         $builder->join('user u', 'u.id = p.id_user');
+         $builder->join('pinjam_detail pd', 'pd.no_pinjam = p.no_pinjam');
+         $builder->join('buku b', 'b.id = pd.id_buku');
+         $builder->where('p.tgl_pinjam >=', $tgl_mulai);
+         $builder->where('p.tgl_pinjam <=', $tgl_akhir);
+         return $builder->get()->getResultArray();
     }
 }

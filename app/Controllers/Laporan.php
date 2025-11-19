@@ -38,7 +38,8 @@ class Laporan extends BaseController
         echo view('templates/header', $data);
         echo view('templates/sidebar', $data);
         echo view('templates/topbar', $data);
-        echo view('buku/laporan_buku', $data); // View ini ada di 'buku'
+        // PERBAIKAN: Path view disesuaikan ke folder 'laporan'
+        echo view('laporan/laporan_buku', $data); 
         echo view('templates/footer');
     }
 
@@ -49,7 +50,8 @@ class Laporan extends BaseController
     {
         $data['buku'] = $this->ModelBuku->getBuku()->getResultArray();
         $data['judul'] = "Laporan Data Buku";
-        echo view('buku/laporan_print_buku', $data);
+        // View ini tetap di folder 'buku' sesuai instruksi sebelumnya
+        echo view('buku/laporan_print_buku', $data); 
     }
 
     /**
@@ -58,20 +60,18 @@ class Laporan extends BaseController
     public function laporan_buku_pdf()
     {
         $data['buku'] = $this->ModelBuku->getBuku()->getResultArray();
-        $data['judul'] = "Laporan Data Buku"; // Judul untuk PDF
+        $data['judul'] = "Laporan Data Buku"; 
 
-        // Persiapan Dompdf
         $dompdf = new Dompdf();
         $options = $dompdf->getOptions();
         $options->set(array('isRemoteEnabled' => true));
         $dompdf->setOptions($options);
         
-        // Muat view ke Dompdf
-        $dompdf->loadHtml(view('buku/laporan_pdf_buku', $data));
+        // View ini tetap di folder 'buku' sesuai instruksi sebelumnya
+        $dompdf->loadHtml(view('buku/laporan_pdf_buku', $data)); 
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
         
-        // Output PDF (preview di browser)
         $dompdf->stream('laporan_data_buku.pdf', array('Attachment' => 0));
     }
 
@@ -85,7 +85,6 @@ class Laporan extends BaseController
             'buku' => $this->ModelBuku->getBuku()->getResultArray()
         ];
         
-        // Set header response untuk Excel
         $this->response
              ->setHeader('Content-Type', 'application/vnd.ms-excel')
              ->setHeader('Content-Disposition', 'attachment;filename="laporan_buku.xls"')
@@ -95,7 +94,6 @@ class Laporan extends BaseController
     }
 
     // --- LAPORAN ANGGOTA ---
-    // (Fitur ini tidak ada di repo CI3, tapi kita tambahkan)
 
     public function laporan_anggota()
     {
@@ -105,7 +103,7 @@ class Laporan extends BaseController
         echo view('templates/header', $data);
         echo view('templates/sidebar', $data);
         echo view('templates/topbar', $data);
-        echo view('laporan/laporan_anggota', $data); // View baru
+        echo view('laporan/laporan_anggota', $data);
         echo view('templates/footer');
     }
 
@@ -113,7 +111,7 @@ class Laporan extends BaseController
     {
         $data['anggota'] = $this->ModelUser->where('role_id !=', 1)->findAll();
         $data['judul'] = "Laporan Data Anggota";
-        echo view('laporan/laporan_print_anggota', $data); // View baru
+        echo view('laporan/laporan_print_anggota', $data);
     }
 
     public function laporan_anggota_pdf()
@@ -126,7 +124,7 @@ class Laporan extends BaseController
         $options->set(array('isRemoteEnabled' => true));
         $dompdf->setOptions($options);
         
-        $dompdf->loadHtml(view('laporan/laporan_pdf_anggota', $data)); // View baru
+        $dompdf->loadHtml(view('laporan/laporan_pdf_anggota', $data));
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
         $dompdf->stream('laporan_data_anggota.pdf', array('Attachment' => 0));
@@ -142,7 +140,7 @@ class Laporan extends BaseController
         $this->response
              ->setHeader('Content-Type', 'application/vnd.ms-excel')
              ->setHeader('Content-Disposition', 'attachment;filename="laporan_anggota.xls"')
-             ->setBody(view('laporan/export_excel_anggota', $data)); // View baru
+             ->setBody(view('laporan/export_excel_anggota', $data));
         
         return $this->response;
     }
@@ -158,23 +156,20 @@ class Laporan extends BaseController
         $data['judul'] = 'Laporan Data Peminjaman';
         $data['user'] = $this->ModelUser->cekData(['email' => session()->get('email')]);
 
-        // Aturan validasi (CI4 style)
         $rules = [
             'tgl_mulai' => 'required',
             'tgl_akhir' => 'required'
         ];
 
-        // Jika form disubmit
         if ($this->request->getMethod() === 'post' && $this->validate($rules)) {
             $tgl_mulai = $this->request->getPost('tgl_mulai');
             $tgl_akhir = $this->request->getPost('tgl_akhir');
-            $laporan_type = $this->request->getPost('laporan_type'); // (print, pdf, excel)
+            $laporan_type = $this->request->getPost('laporan_type');
 
             $data['tgl_mulai'] = $tgl_mulai;
             $data['tgl_akhir'] = $tgl_akhir;
             $data['pinjam'] = $this->ModelPinjam->laporanPeminjaman($tgl_mulai, $tgl_akhir);
             
-            // Arahkan ke method cetak yang sesuai
             if ($laporan_type == 'print') {
                 return $this->laporan_pinjam_print($tgl_mulai, $tgl_akhir);
             } elseif ($laporan_type == 'pdf') {
@@ -184,7 +179,6 @@ class Laporan extends BaseController
             }
         }
         
-        // Tampilkan halaman form
         $data['validation'] = $this->validator;
         echo view('templates/header', $data);
         echo view('templates/sidebar', $data);
@@ -193,9 +187,6 @@ class Laporan extends BaseController
         echo view('templates/footer');
     }
 
-    /**
-     * Aksi Cetak Print Laporan Pinjam
-     */
     public function laporan_pinjam_print($tgl_mulai, $tgl_akhir)
     {
         $data = [
@@ -207,9 +198,6 @@ class Laporan extends BaseController
         echo view('pinjam/laporan-print-pinjam', $data);
     }
 
-    /**
-     * Aksi Download PDF Laporan Pinjam
-     */
     public function laporan_pinjam_pdf($tgl_mulai, $tgl_akhir)
     {
         $data = [
@@ -230,9 +218,6 @@ class Laporan extends BaseController
         $dompdf->stream('laporan_data_peminjaman.pdf', array('Attachment' => 0));
     }
 
-    /**
-     * Aksi Export Excel Laporan Pinjam
-     */
     public function export_excel_pinjam($tgl_mulai, $tgl_akhir)
     {
         $data = [

@@ -2,64 +2,72 @@
 
 namespace App\Controllers;
 
-// Import model yang akan digunakan
 use App\Models\ModelUser;
 use App\Models\ModelBuku;
+use App\Models\ModelBooking;
+use App\Models\ModelPinjam;
 
 class Admin extends BaseController
 {
-    // Properti untuk menyimpan instance model
     protected $ModelUser;
     protected $ModelBuku;
+    protected $ModelBooking;
+    protected $ModelPinjam;
+    
+    protected $helpers = ['form', 'url', 'session'];
 
     public function __construct()
     {
-        // Buat instance dari model
+        // Inisialisasi semua model
         $this->ModelUser = new ModelUser();
         $this->ModelBuku = new ModelBuku();
+        $this->ModelBooking = new ModelBooking();
+        $this->ModelPinjam = new ModelPinjam();
         
-        // Panggil helper cek_login
-        // (Pastikan 'pustaka' helper sudah di-load di app/Config/Autoload.php)
+        // Pastikan hanya admin yang bisa akses
         cek_login();
     }
 
     public function index()
     {
-        // Ambil data dari modul
         $data['judul'] = 'Dashboard';
-        
-        // Ambil data user dari session (CI4 way)
         $data['user'] = $this->ModelUser->cekData(['email' => session()->get('email')]);
         
-        // Ambil data anggota (menggunakan ModelUser CI4 yang sudah kita buat)
-        $data['anggota'] = $this->ModelUser->getUserLimit();
+        // ============================================================
+        // LOGIKA WIDGET DASHBOARD (KOTAK WARNA-WARNI)
+        // ============================================================
         
-        // Ambil data buku (menggunakan ModelBuku CI4)
-        $data['buku'] = $this->ModelBuku->getBuku()->getResultArray();
-
-        // !! LOGIKA TAMBAHAN UNTUK KOTAK DASHBOARD (hlm 66-68) !!
-        // Kita panggil model di controller, bukan di view
+        // 1. Widget Anggota (Warna Biru)
+        // Mengambil jumlah user dengan role member
+        $data['total_anggota'] = $this->ModelUser->where('role_id', 2)->countAllResults();
         
-        // 1. Jumlah Anggota (Admin)
-        // Adaptasi: $this->ModelUser->getUserWhere (['role_id' => 1])->num_rows();
-        // Kita gunakan countAllResults() di CI4
-        $data['total_anggota'] = $this->ModelUser->where(['role_id' => 1])->countAllResults();
-
-        // 2. Stok Buku Terdaftar
-        // Adaptasi: $this->ModelBuku->total('stok', $where);
-        // Kita gunakan selectSum() di CI4
-        $data['total_stok_buku'] = $this->ModelBuku->selectSum('stok')->where(['stok !=' => 0])->get()->getRowArray()['stok'];
+        // 2. Widget Stok Buku (Warna Kuning)
+        // Mengambil jumlah total judul buku
+        $data['total_stok_buku'] = $this->ModelBuku->countAllResults();
         
-        // 3. Buku yang dipinjam
-        // Adaptasi: $this->ModelBuku->total('dipinjam', $where);
-        $data['total_dipinjam'] = $this->ModelBuku->selectSum('dipinjam')->where(['dipinjam !=' => 0])->get()->getRowArray()['dipinjam'];
+        // 3. Widget Peminjaman (Warna Merah - "Buku yang dipinjam")
+        // Mengambil jumlah data di tabel pinjam dengan status 'Pinjam'
+        $data['total_dipinjam'] = $this->ModelPinjam->where('status', 'Pinjam')->countAllResults();
+        
+        // 4. Widget Booking (Warna Hijau - "Buku yang dibooking")
+        // Mengambil jumlah data di tabel booking.
+        // PERBAIKAN: Variabel disesuaikan dengan View ($total_dibooking)
+        $data['total_dibooking'] = $this->ModelBooking->countAllResults();
 
-        // 4. Buku yang dibooking
-        // Adaptasi: $this->ModelBuku->total('dibooking', $where);
-        $data['total_dibooking'] = $this->ModelBuku->selectSum('dibooking')->where(['dibooking !=' => 0])->get()->getRowArray()['dibooking'];
+        // ============================================================
+        // DATA UNTUK TABEL
+        // ============================================================
+        
+        // Data anggota terbaru (Limit 10)
+        $data['anggota'] = $this->ModelUser->where('role_id', 2)->orderBy('id', 'DESC')->findAll(10);
+        
+        // Data buku
+        $data['buku'] = $this->ModelBuku->getBuku(); 
 
+        // Data detail booking (Kosongkan agar tidak error jika view memanggilnya untuk tabel kosong)
+        $data['detail'] = [];
 
-        // Tampilkan view (CI4 way)
+        // Tampilkan View
         echo view('templates/header', $data);
         echo view('templates/sidebar', $data);
         echo view('templates/topbar', $data);

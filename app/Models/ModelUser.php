@@ -66,12 +66,9 @@ class ModelUser extends Model
      * semua hasil sebagai array.
      */
     public function getUserLimit()
-    {
-        // Ini setara dengan $this->db->select('*'); $this->db->from('user');
-        // $this->db->limit(10, 0); return $this->db->get();
-        return $this->limit(10, 0)->get()->getResultArray();
-    }
-
+{
+    return $this->orderBy('id', 'DESC')->findAll(5);
+}
     /**
      * Mengecek akses user (Code dari modul hlm. 86)
      * Catatan: Tabel 'access_menu' tidak ada di pustaka.sql,
@@ -82,4 +79,5 @@ class ModelUser extends Model
         // Kode ini diadaptasi langsung dari modul
         return $this->db->table('access_menu')->where($where)->get();
     }
+    
 }

@@ -6,111 +6,132 @@ use CodeIgniter\Model;
 
 class ModelBuku extends Model
 {
-    // ==================================================================================
-    // KONFIGURASI MODEL
-    // ==================================================================================
-    protected $table = 'buku'; // Tabel utama yang dimanipulasi
+    protected $table = 'buku';
     protected $primaryKey = 'id';
-    
-    // Field yang diizinkan untuk diisi (digunakan untuk insert/update)
-    protected $allowedFields = [
-        'judul_buku', 'id_kategori', 'pengarang', 'penerbit', 'tahun_terbit', 
-        'isbn', 'stok', 'dipinjam', 'dibooking', 'image'
-    ];
+    // Pastikan semua kolom ada di sini
+    protected $allowedFields = ['judul_buku', 'id_kategori', 'pengarang', 'penerbit', 'tahun_terbit', 'isbn', 'stok', 'dipinjam', 'dibooking', 'image'];
 
-
-    // ==================================================================================
-    // MANAJEMEN BUKU (Halaman 47)
-    // ==================================================================================
-
-    // Menampilkan semua data buku (getBuku/tampil)
-    public function getBuku()
+    public function getBuku($id = null)
     {
-        return $this->db->table($this->table)->get(); 
+        if ($id === null) {
+            return $this->findAll();
+        }
+        return $this->getWhere(['id' => $id]);
     }
 
-    // Menampilkan data buku berdasarkan kondisi (bukuWhere)
     public function bukuWhere($where)
     {
-        return $this->db->table($this->table)->getWhere($where);
+        return $this->where($where);
     }
-    
-    // Menyimpan data buku (simpanBuku)
+
     public function simpanBuku($data = null)
     {
-        return $this->db->table($this->table)->insert($data);
+        $this->insert($data);
     }
-    
-    // Mengubah data buku (updateBuku)
+
     public function updateBuku($data = null, $where = null)
     {
-        return $this->db->table($this->table)->update($data, $where);
+        $this->update($where, $data);
     }
-    
-    // Menghapus data buku (hapusBuku)
+
     public function hapusBuku($where = null)
     {
-        return $this->db->table($this->table)->delete($where);
+        $this->where($where)->delete();
     }
 
-    // Menghitung total stok/dipinjam/dibooking (total)
-    public function total($field, $where = [])
+    public function total($field, $where)
     {
-        $builder = $this->db->table($this->table)->selectSum($field);
-        
-        if (!empty($where)) {
-            $builder->where($where);
-        }
-        
-        return $builder->get(); 
+        $builder = $this->db->table($this->table);
+        $builder->select('SUM(' . $field . ') as total');
+        $builder->where($where);
+        return $builder->get()->getRow()->total;
     }
 
-    // Join tabel buku dan kategori (joinKategoriBuku)
-    // Digunakan saat update data buku
-    public function joinKategoriBuku($where)
-    {
-        return $this->db->table('buku')
-                        // Perlu diperhatikan: nama kolom kategori di tabel kategori adalah 'nama_kategori' atau 'kategori'
-                        // Saya menggunakan 'nama_kategori' sesuai SQL yang kita buat, dan alias 'kategori'
-                        ->select('buku.id_kategori, kategori.nama_kategori as kategori')
-                        ->join('kategori', 'kategori.id_kategori = buku.id_kategori') // Sesuaikan ID kolom
-                        ->where($where)
-                        ->get();
-    }
-
-
-    // ==================================================================================
-    // MANAJEMEN KATEGORI (Halaman 50)
-    // ==================================================================================
-    // Perhatikan: Model ini menggunakan tabel terpisah ('kategori') untuk manajemen kategori
-
-    // Menampilkan semua kategori (getKategori)
     public function getKategori()
     {
-        return $this->db->table('kategori')->get();
+        return $this->db->table('kategori')->get()->getResultArray();
     }
-    
-    // Menampilkan kategori berdasarkan kondisi (kategoriWhere)
+
     public function kategoriWhere($where)
     {
-        return $this->db->table('kategori')->getWhere($where);
+        return $this->db->table('kategori')->where($where)->get();
     }
 
-    // Menyimpan data kategori (simpanKategori)
     public function simpanKategori($data = null)
     {
-        return $this->db->table('kategori')->insert($data);
+        $this->db->table('kategori')->insert($data);
     }
 
-    // Menghapus data kategori (hapusKategori)
     public function hapusKategori($where = null)
     {
-        return $this->db->table('kategori')->delete($where);
+        $this->db->table('kategori')->where($where)->delete();
     }
 
-    // Update data kategori (updateKategori)
-    public function updateKategori($data = null, $where = null)
+    public function updateKategori($where = null, $data = null)
     {
-        return $this->db->table('kategori')->update($data, $where);
+        $this->db->table('kategori')->update($data, $where);
+    }
+
+    public function joinKategoriBuku($where)
+    {
+        $builder = $this->db->table('buku');
+        $builder->select('buku.id_kategori,kategori.kategori');
+        $builder->from('buku');
+        $builder->join('kategori', 'kategori.id = buku.id_kategori');
+        $builder->where($where);
+        return $builder->get();
+    }
+    
+    /**
+     * Mengurangi Stok Buku (Saat Booking Selesai)
+     * Menggunakan set(..., false) agar tidak dianggap string
+     */
+    public function kurangiStok($id_buku)
+    {
+        // Stok berkurang 1, Dibooking bertambah 1
+        return $this->db->table($this->table)
+            ->set('stok', 'stok - 1', false)
+            ->set('dibooking', 'dibooking + 1', false)
+            ->where('id', $id_buku)
+            ->update();
+    }
+
+    /**
+     * Membatalkan Booking (Stok Kembali)
+     */
+    public function kembalikanStok($id_buku)
+    {
+        // Stok bertambah 1, Dibooking berkurang 1
+        return $this->db->table($this->table)
+            ->set('stok', 'stok + 1', false)
+            ->set('dibooking', 'dibooking - 1', false)
+            ->where('id', $id_buku)
+            ->update();
+    }
+
+    /**
+     * Saat Admin Konfirmasi Peminjaman
+     * Dibooking berkurang, Dipinjam bertambah (Stok tetap karena sudah dikurangi saat booking)
+     */
+    public function simpanPinjam($id_buku)
+    {
+         return $this->db->table($this->table)
+            ->set('dibooking', 'dibooking - 1', false)
+            ->set('dipinjam', 'dipinjam + 1', false)
+            ->where('id', $id_buku)
+            ->update();
+    }
+
+    /**
+     * Saat Buku Dikembalikan ke Perpustakaan
+     * Dipinjam berkurang, Stok bertambah
+     */
+    public function updateStokKembali($id_buku)
+    {
+        return $this->db->table($this->table)
+            ->set('stok', 'stok + 1', false)
+            ->set('dipinjam', 'dipinjam - 1', false)
+            ->where('id', $id_buku)
+            ->update();
     }
 }
