@@ -5,17 +5,20 @@ namespace App\Controllers;
 // Import model yang kita perlukan
 use App\Models\ModelBuku;
 use App\Models\ModelUser;
+use App\Models\ModelBooking; // Perlu untuk hitung keranjang
 
 class Home extends BaseController
 {
     protected $ModelBuku;
     protected $ModelUser;
+    protected $ModelBooking;
 
     public function __construct()
     {
         // Inisialisasi model
         $this->ModelBuku = new ModelBuku();
         $this->ModelUser = new ModelUser();
+        $this->ModelBooking = new ModelBooking();
     }
 
     /**
@@ -26,20 +29,23 @@ class Home extends BaseController
     {
         $data = [
             'judul' => "Katalog Buku",
-            // Ambil data buku (seperti di CI3 Home.php)
             'buku' => $this->ModelBuku->getBuku()->getResultArray(), 
-            'user' => [] // Default user kosong
+            'user' => [], // Default user kosong
+            'count_temp' => 0 // Default keranjang 0
         ];
 
         // Cek jika user sudah login (CI4 session)
         if (session()->get('email')) {
-            $data['user'] = $this->ModelUser->cekData(['email' => session()->get('email')]);
+            $user = $this->ModelUser->cekData(['email' => session()->get('email')]);
+            $data['user'] = $user;
+            
+            // Hitung isi keranjang (tabel temp)
+            $data['count_temp'] = $this->ModelBooking->getCountTemp(['id_user' => $user['id']]);
         }
 
         // Tampilkan view
         echo view('templates/templates-user/header', $data);
-        // Kita gunakan view buku/daftarbuku.php dari repo CI3
-        echo view('buku/daftarbuku', $data); 
+        echo view('buku/daftarbuku', $data); // View ini menampilkan buku-buku
         echo view('templates/templates-user/footer', $data);
     }
 
@@ -55,14 +61,18 @@ class Home extends BaseController
 
         $data = [
             'judul' => "Detail Buku",
-            // Ambil data buku spesifik (CI4 getRowArray)
             'buku' => $this->ModelBuku->bukuWhere(['id' => $id])->getRowArray(), 
-            'user' => [] // Default user kosong
+            'user' => [], // Default user kosong
+            'count_temp' => 0 // Default keranjang 0
         ];
 
         // Cek jika user sudah login (CI4 session)
         if (session()->get('email')) {
-            $data['user'] = $this->ModelUser->cekData(['email' => session()->get('email')]);
+            $user = $this->ModelUser->cekData(['email' => session()->get('email')]);
+            $data['user'] = $user;
+
+            // Hitung isi keranjang (tabel temp)
+            $data['count_temp'] = $this->ModelBooking->getCountTemp(['id_user' => $user['id']]);
         }
 
         // Tampilkan view

@@ -21,7 +21,7 @@ class Booking extends BaseController
         $this->ModelUser = new ModelUser();
         $this->ModelBuku = new ModelBuku();
         
-        // Panggil helper cek_login (pastikan 'pustaka' helper ada di Autoload.php)
+        // Panggil helper cek_login
         cek_login();
     }
 
@@ -31,16 +31,16 @@ class Booking extends BaseController
      */
     public function index()
     {
-        $id_user = session()->get('id_user'); // Ambil id_user dari session
         $email_user = session()->get('email');
+        $user = $this->ModelUser->cekData(['email' => $email_user]);
+        $id_user = $user['id']; // Ambil id_user
         
-        $data['user'] = $this->ModelUser->cekData(['email' => $email_user]);
+        $data['user'] = $user;
         $data['judul'] = "Data Booking";
         $data['booking'] = $this->ModelBooking->getDataTemp(['id_user' => $id_user]);
-        $data['user'] = $this->ModelUser->cekData(['email' => $email_user]);
-
-        // Hitung total bayar (jika ada denda/harga, di CI3 tidak ada, jadi 0)
-        $data['total'] = 0; 
+        
+        // Hitung isi keranjang (tabel temp)
+        $data['count_temp'] = $this->ModelBooking->getCountTemp(['id_user' => $id_user]);
         
         echo view('templates/templates-user/header', $data);
         echo view('booking/data-booking', $data);
@@ -103,7 +103,10 @@ class Booking extends BaseController
      */
     public function hapusbooking($id_buku)
     {
-        $id_user = session()->get('id_user');
+        $email_user = session()->get('email');
+        $user = $this->ModelUser->cekData(['email' => $email_user]);
+        $id_user = $user['id']; // Dapatkan id_user
+
         $this->ModelBooking->deleteData(['id_buku' => $id_buku, 'id_user' => $id_user], 'temp');
         
         session()->setFlashdata('pesan', '<div class="alert alert-success" role="alert">Buku berhasil dihapus dari keranjang!</div>');
@@ -121,7 +124,7 @@ class Booking extends BaseController
         $id_user = $user['id']; // Dapatkan id_user
 
         $tgl_sekarang = date('Y-m-d');
-        $id_booking = $this->ModelBooking->kodeOtomatis('booking', 'id_booking');
+        $id_booking = $this->ModelBooking->kodeOtomatis('id_booking', 'booking');
         
         $data_booking = [
             'id_booking' => $id_booking,
@@ -150,6 +153,7 @@ class Booking extends BaseController
         $data['user'] = $user;
         $data['judul'] = "Booking Selesai";
         $data['info'] = $this->ModelBooking->getDatabyId('booking', ['id_booking' => $id_booking]);
+        $data['count_temp'] = 0; // Keranjang sudah kosong
         
         echo view('templates/templates-user/header', $data);
         echo view('booking/info-booking', $data);

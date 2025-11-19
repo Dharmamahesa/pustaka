@@ -19,7 +19,7 @@ class ModelBooking extends Model
         return $this->db->table($table)->insert($data);
     }
 
-    // Method untuk mengambil data dari tabel tertentu dengan kondisi
+    
     public function getDataWhere($table, $where)
     {
         return $this->db->table($table)->where($where)->get();
@@ -82,5 +82,31 @@ class ModelBooking extends Model
         $builder->join('user u', 'u.id = b.id_user');
         $builder->where('b.id_user', $where);
         return $builder->get()->getResultArray();
+    }
+
+    /**
+     * !! FUNGSI YANG HILANG ADA DI SINI !!
+     * Kode Otomatis untuk id_booking
+     * (Adaptasi dari CI3 repo)
+     */
+    public function kodeOtomatis($key, $table)
+    {
+        $builder = $this->db->table($table);
+        $builder->select('RIGHT(' . $key . ', 3) as kode', false);
+        $builder->orderBy($key, 'DESC');
+        $builder->limit(1);
+        $query = $builder->get();
+
+        if ($query->getNumRows() <> 0) {
+            $data = $query->getRow();
+            $kode = intval($data->kode) + 1;
+        } else {
+            $kode = 1;
+        }
+
+        $batas = str_pad($kode, 3, "0", STR_PAD_LEFT);
+        // Format CI3: "BO".date('Ymd').$batas
+        $kode_tampil = "BO" . date('Ymd') . $batas;
+        return $kode_tampil;
     }
 }

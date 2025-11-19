@@ -9,11 +9,12 @@
                     <div class="text-center">
                         <i class="fas fa-check-circle fa-5x text-success mb-3"></i>
                         <h4 class="card-title">Booking Berhasil!</h4>
-                        <p class="card-text">Terima kasih, <strong><?= $user['nama']; ?></strong>, telah melakukan booking.</p>
+                        <p class="card-text">Terima kasih, <strong><?= (isset($user['nama'])) ? $user['nama'] : 'Member'; ?></strong>, telah melakukan booking.</p>
                     </div>
                     
                     <hr>
 
+                    <?php if (!empty($info)) : ?>
                     <div class="row">
                         <div class="col-md-6">
                             <ul class="list-group list-group-flush">
@@ -43,6 +44,15 @@
                     <div class="alert alert-warning mt-4" role="alert">
                         <h4 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Perhatian!</h4>
                         <p>Silakan cetak bukti booking ini dan bawa ke perpustakaan untuk pengambilan buku. Batas pengambilan buku adalah 2 hari dari tanggal booking.</p>
+                    </div>
+                    <?php else : ?>
+                        <div class="alert alert-danger" role="alert">
+                            Maaf, data booking tidak ditemukan. Silakan cek riwayat booking Anda.
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="text-center mt-3">
+                         <a href="<?= base_url(); ?>" class="btn btn-secondary">Kembali ke Beranda</a>
                     </div>
 
                 </div>
